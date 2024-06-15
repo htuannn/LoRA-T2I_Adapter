@@ -1,10 +1,11 @@
+import torch
+from PIL import Image
+import numpy as np
+
 from t2i_adapters import patch_pipe, Adapter, sketch_extracter
 
 from t2i_adapters.api import get_cond_canny, get_cond_depth
 from diffusers import StableDiffusionPipeline, UNet2DConditionModel
-import torch
-from PIL import Image
-import numpy as np
 
 DEFAULT_NEGATIVE_PROMPT = "ugly, bad anatomy, bad proportions, bad quality, blurry, cropped, \
 deformed, error, worst quality, low quality, jpeg, jpeg artifacts, pixel, pixelated, grainy"
