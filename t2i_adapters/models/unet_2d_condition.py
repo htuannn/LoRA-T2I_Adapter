@@ -483,6 +483,7 @@ class T2IAdapterUNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoa
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
         adapter_features: Optional[List[torch.Tensor]] = None,
+        added_cond_kwargs = None,
     ) -> Union[UNet2DConditionOutput, Tuple]:
         r"""
         Args:

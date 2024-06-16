@@ -1,3 +1,5 @@
+import os
+import cv2
 import argparse
 import torch
 from PIL import Image
@@ -22,7 +24,7 @@ if __name__ == "__main__":
         help='path to checkpoint of stable diffusion model',
     )
     parser.add_argument(
-        '--LoRA_ck',
+        '--LoRA_ckp',
         type=str,
         default='./contents/pytorch_lora_weights.safetensors',
         help='path to checkpoint of LoRA, .safetensor are supported',
@@ -58,23 +60,12 @@ if __name__ == "__main__":
         help='prompt',
     )
     parser.add_argument(
-        '--cond_img_path',
+        '--name',
         type=str,
-        default="./example/img1.png",
-        help='condition image path',
+        default="image1",
+        help='Image name',
     )
-    parser.add_argument(
-        '--cond_name',
-        type=str,
-        default="canny",
-        help='Condition name',
-    )
-    parser.add_argument(
-        '--resize_short_edge',
-        type=int,
-        default=512,
-        help='Resize Short Edge',
-    )
+
     global_opt = parser.parse_args()
 
     global_opt.max_resolution = 512 * 512
@@ -91,58 +82,23 @@ if __name__ == "__main__":
         model_id, torch_dtype=torch.float16
     ).to(device)
 
-    pipe.load_lora_weights(global_opt.LoRA_ck)
+    pipe.load_lora_weights(global_opt.LoRA_ckp)
     pipe.fuse_lora(lora_scale = 0.9)
+    ext_type = "noadapt"
+    prompt = global_opt.prompt
 
-    patch_pipe(pipe)
+    neg_prompt = global_opt.neg_prompt
+    torch.manual_seed(1)
 
-    for ext_type, prompt in [(global_opt.cond_name, global_opt.prompt)]:
-        adapter = Adapter.from_pretrained(ext_type).to(device)
+    imgs = pipe(
+        [global_opt.prompt] * global_opt.num_samples,
+        negative_prompt=[global_opt.neg_prompt] * global_opt.num_samples,
+        num_inference_steps=global_opt.steps,
+        guidance_scale=global_opt.guidance_scale,
+        height=512,
+        width=512,
+    ).images
 
-        # 2. Prepare Condition via adapter.
-        cond_img_src = Image.open(global_opt.cond_img_path)
-
-        if ext_type == "sketch":
-            cond_img = cond_img_src.convert("L")
-            cond_img = np.array(cond_img) / 255.0
-            cond_img = torch.from_numpy(cond_img).unsqueeze(0).unsqueeze(0).to(device)
-            cond_img = (cond_img > 0.5).float()
-
-        if ext_type == "canny":
-            cond_img = get_cond_canny(global_opt, global_opt.cond_img_path)
-
-        if ext_type == "depth":
-            cond_img = get_cond_depth(global_opt, global_opt.cond_img_path)
-            cond_img = np.array(cond_img) / 255.0
-
-            cond_img = (
-                torch.from_numpy(cond_img)
-                .permute(2, 0, 1)
-                .unsqueeze(0)
-                .to(device)
-                .float()
-            )
-
-        with torch.no_grad():
-            adapter_features = adapter(cond_img)
-
-        pipe.unet.set_adapter_features(adapter_features)
-
-        pipe.safety_checker = None
-        neg_prompt = global_opt.neg_prompt
-        torch.manual_seed(1)
-
-        imgs = pipe(
-            [global_opt.prompt] * global_opt.num_samples,
-            negative_prompt=[global_opt.neg_prompt] * global_opt.num_samples,
-            num_inference_steps=global_opt.steps,
-            guidance_scale=global_opt.guidance_scale,
-            height=cond_img.shape[2],
-            width=cond_img.shape[3],
-        ).images
-
-        out_imgs = imgs[0]
-
-        image_grid([cond_img_src, out_imgs], 1, 2).save(
-            f"./contents/{ext_type}_lora.jpg"
-        )
+    #save result
+    for i, img in enumerate(imgs):
+        img.save(f"examples/result_{global_opt.name}_{i}_no_adapt.jpg")

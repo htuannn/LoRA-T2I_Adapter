@@ -23,7 +23,7 @@ if __name__ == "__main__":
         help='path to checkpoint of stable diffusion model',
     )
     parser.add_argument(
-        '--LoRA_ck',
+        '--LoRA_ckp',
         type=str,
         default='./contents/pytorch_lora_weights.safetensors',
         help='path to checkpoint of LoRA, .safetensor are supported',
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     patch_pipe(pipe)
 
-    pipe.load_lora_weights(global_opt.LoRA_ck)
+    pipe.load_lora_weights(global_opt.LoRA_ckp)
     pipe.fuse_lora(lora_scale = 0.9)
 
     for ext_type, prompt in [(global_opt.cond_name, global_opt.prompt)]:
@@ -103,26 +103,11 @@ if __name__ == "__main__":
         # 2. Prepare Condition via adapter.
         cond_img_src = Image.open(global_opt.cond_img_path)
 
-        if ext_type == "sketch":
-            cond_img = cond_img_src.convert("L")
-            cond_img = np.array(cond_img) / 255.0
-            cond_img = torch.from_numpy(cond_img).unsqueeze(0).unsqueeze(0).to(device)
-            cond_img = (cond_img > 0.5).float()
-
         if ext_type == "canny":
             cond_img, cond_img_tensor = get_cond_canny(global_opt, global_opt.cond_img_path)
 
         if ext_type == "depth":
-            cond_img = get_cond_depth(global_opt, global_opt.cond_img_path)
-            cond_img = np.array(cond_img) / 255.0
-
-            cond_img = (
-                torch.from_numpy(cond_img)
-                .permute(2, 0, 1)
-                .unsqueeze(0)
-                .to(device)
-                .float()
-            )
+            cond_img, cond_img_tensor = get_cond_depth(global_opt, global_opt.cond_img_path)
 
         with torch.no_grad():
             adapter_features = adapter(cond_img_tensor)
@@ -138,13 +123,14 @@ if __name__ == "__main__":
             negative_prompt=[global_opt.neg_prompt] * global_opt.num_samples,
             num_inference_steps=global_opt.steps,
             guidance_scale=global_opt.guidance_scale,
-            height=cond_img.shape[2],
-            width=cond_img.shape[3],
+            height=cond_img_tensor.shape[2],
+            width=cond_img_tensor.shape[3],
         ).images
 
         img_name, _ = os.path.splitext(os.path.basename(global_opt.cond_img_path))
 
         #save result
         for i, img in enumerate(imgs):
-            img.save(f"result_{img_name}_{i}_{ext_type}.jpg")
-        cond_img.save(f"{ext_type}_{img_name}.png")
+            img.save(f"examples/result_{img_name}_{i}_{ext_type}.jpg")
+
+        cv2.imwrite(f"examples/{ext_type}_{img_name}.png", cond_img)
