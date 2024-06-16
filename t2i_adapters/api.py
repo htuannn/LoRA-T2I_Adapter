@@ -30,12 +30,13 @@ def get_cond_canny(opt, cond_image, cond_inp_type='image', cond_model=None):
         canny = canny.to(opt.device)
     elif cond_inp_type == 'image':
         canny = cv2.Canny(canny, 100, 200)[..., None]
+        canny_org = canny.copy()
         canny = img2tensor(canny).unsqueeze(0) / 255.
         canny = canny.to(opt.device)
     else:
         raise NotImplementedError
 
-    return canny
+    return canny_org, canny
 
 def get_cond_depth(opt, cond_image, cond_inp_type='image', cond_model=None):
     if isinstance(cond_image, str):

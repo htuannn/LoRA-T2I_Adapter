@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
+from diffusers.loaders import UNet2DConditionLoadersMixin, PeftAdapterMixin
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -48,7 +49,7 @@ class UNet2DConditionOutput(BaseOutput):
     sample: torch.FloatTensor
 
 
-class T2IAdapterUNet2DConditionModel(ModelMixin, ConfigMixin):
+class T2IAdapterUNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, PeftAdapterMixin):
     r"""
     UNet2DConditionModel is a conditional 2D UNet model that takes in a noisy sample, conditional state, and a timestep
     and returns sample shaped output.
