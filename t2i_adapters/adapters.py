@@ -180,22 +180,39 @@ class Adapter(nn.Module):
                 sk=True,
                 use_conv=False,
             )
-
-        else:
-            # all other models are in:
+        if adapter_type == "canny":
             mod = Adapter(
-                cin=64 * 3,
-                channels=[320, 640, 1280, 1280],
+                cin=64 * 1,
+                channels=[320, 640, 1280, 1280][:4],
                 nums_rb=2,
                 ksize=1,
                 sk=True,
                 use_conv=False,
             )
 
-        mod.load_state_dict(
-            torch.hub.load_state_dict_from_url(
+        else:
+            # all other models are in:
+            mod = Adapter(
+                cin=64 * 3,
+                channels=[320, 640, 1280, 1280][:4],
+                nums_rb=2,
+                ksize=1,
+                sk=True,
+                use_conv=False,
+            )
+
+        state_dict =  torch.hub.load_state_dict_from_url(
                 WEB_PATH[adapter_type], map_location="cpu"
             )
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith('adapter.'):
+                new_state_dict[k[len('adapter.'):]] = v
+            else:
+                new_state_dict[k] = v
+
+        mod.load_state_dict(
+          new_state_dict
         )
 
         return mod

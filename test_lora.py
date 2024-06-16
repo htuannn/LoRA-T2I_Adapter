@@ -1,3 +1,4 @@
+import argparse
 import torch
 from PIL import Image
 import numpy as np
@@ -68,6 +69,12 @@ if __name__ == "__main__":
         default="canny",
         help='Condition name',
     )
+    parser.add_argument(
+        '--resize_short_edge',
+        type=int,
+        default=512,
+        help='Resize Short Edge',
+    )
     global_opt = parser.parse_args()
 
     global_opt.max_resolution = 512 * 512
@@ -75,7 +82,7 @@ if __name__ == "__main__":
     global_opt.cond_weight = 1.0
     global_opt.C = 4
     global_opt.f = 8
-
+    global_opt.device = "cuda" if torch.cuda.is_available() else "cpu"
     # 0. Define model
 
     model_id = "runwayml/stable-diffusion-v1-5"
@@ -84,12 +91,11 @@ if __name__ == "__main__":
         model_id, torch_dtype=torch.float16
     ).to(device)
 
-    patch_pipe(pipe)
-    from lora_diffusion import LoRAManager, image_grid
+    pipe.load_lora_weights(global_opt.LoRA_ck)
+    pipe.fuse_lora(lora_scale = 0.9)
 
-    manager = LoRAManager([global_opt.LoRA_ck], pipe)
-    # 1. Define Adapter feature extractor
-    manager.tune([0.9])
+    patch_pipe(pipe)
+
     for ext_type, prompt in [(global_opt.cond_name, global_opt.prompt)]:
         adapter = Adapter.from_pretrained(ext_type).to(device)
 
